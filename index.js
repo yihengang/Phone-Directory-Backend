@@ -1,16 +1,16 @@
 const express = require("express");
 let app = express();
 const cors = require("cors");
-const morgan = require("morgan");
+// const morgan = require("morgan");
 
 app.use(cors());
 
-morgan.token("id", (req) => {
-  //creating id token
-  return JSON.stringify(req.body);
-});
+// morgan.token("id", (req) => {
+//   //creating id token
+//   return JSON.stringify(req.body);
+// });
 
-app.use(morgan(":method :url :status :res[content-length] :response-time :id"));
+// app.use(morgan(":method :url :status :res[content-length] :response-time :id"));
 
 // const tiny = morgan("tiny");
 // app.use(tiny);
