@@ -2,6 +2,6 @@ POST http://phone-directory-backend.onrender.com/api/persons
 Content-Type: application/json
 
 {
-    "name": "Liisa Marttinen",
-    "number": "040-243563"
+    "name": "Mary Poppendieck",
+    "number": "39-23-6423122"
 }
