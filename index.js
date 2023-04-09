@@ -63,7 +63,7 @@ app.get("/api/persons", (request, response) => {
 });
 
 app.get("/info", (request, response) => {
-  const pplNum = persons.length + 1;
+  const pplNum = persons.length;
   const date = Date();
   response.send(
     `<p>Phonebook has info for ${pplNum} people</p> <p>${date}</p>`
