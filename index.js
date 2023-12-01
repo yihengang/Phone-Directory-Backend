@@ -2,6 +2,9 @@ const express = require("express");
 let app = express();
 const cors = require("cors");
 const morgan = require("morgan");
+require("dotenv").config();
+
+const Person = require("./models/person");
 
 app.use(cors());
 app.use(express.static("build"));
@@ -13,110 +16,92 @@ morgan.token("id", (req) => {
 
 app.use(morgan(":method :url :status :res[content-length] :response-time :id"));
 
-// const tiny = morgan("tiny");
-// app.use(tiny);
-
-// morgan.token("header", (req) => {
-//   return req.hostname;
-// });
-
-// app.use(morgan(":method :url :status :header"));
-
-// app.use(
-//   morgan(":method :status :param[id] :res[content-length] - :response-time ms")
-// );
-
-// morgan.token("param", function (req, res, param) {
-//   return req.params[param];
-// });
-
 const unknownEndpoint = (request, response) => {
   response.status(404).send({ error: "unknown endpoint" });
 };
 
 app.use(express.json());
 
-let persons = [
-  {
-    id: 1,
-    name: "Arto Hellas",
-    number: "040-123456",
-  },
-  {
-    id: 2,
-    name: "Ada Lovelace",
-    number: "39-44-5323523",
-  },
-  {
-    id: 3,
-    name: "Dan Abramov",
-    number: "12-43-234345",
-  },
-  {
-    id: 4,
-    name: "Mary Poppendieck",
-    number: "39-23-6423122",
-  },
-];
+let persons = [];
+
+const errorHandler = (error, request, response, next) => {
+  console.log(error.message);
+  if (error.name === "CastError") {
+    response.status(400).send({ message: "Malformatted id" });
+  }
+  next(error);
+};
 
 app.get("/api/persons", (request, response) => {
-  response.json(persons);
+  Person.find({}).then((people) => {
+    response.json(people);
+  });
 });
 
 app.get("/info", (request, response) => {
-  const pplNum = persons.length;
-  const date = Date();
-  response.send(
-    `<p>Phonebook has info for ${pplNum} people</p> <p>${date}</p>`
-  );
+  Person.find({}).then((people) => {
+    const pplNum = people.length;
+    const date = Date();
+    response.send(
+      `<p>Phonebook has info for ${pplNum} people</p> <p>${date}</p>`
+    );
+  });
 });
 
-app.get("/api/persons/:id", (request, response) => {
-  //get the id and ask
-  const id = Number(request.params.id);
-  const person = persons.find((person) => person.id === id);
-  if (person) {
-    response.json(person);
-  } else {
-    response.statusMessage = `Person with id ${id} is not found`;
-    response.status(404).end();
-  }
+app.get("/api/persons/:id", (request, response, next) => {
+  Person.findById(request.params.id)
+    .then((person) => {
+      if (person) {
+        response.json(person);
+      } else {
+        response.status(404).end();
+      }
+    })
+    .catch((error) => next(error));
 });
 
-app.delete("/api/persons/:id", (request, response) => {
-  const id = Number(request.params.id);
-  persons = persons.filter((person) => person.id !== id);
-  response.statusMessage = `Person with ${id} has been deleted`;
-  response.status(204).end;
+app.delete("/api/persons/:id", (request, response, next) => {
+  Person.findByIdAndRemove(request.params.id)
+    .then((result) => response.status(204).end())
+    .catch((error) => next(error));
 });
 
 app.post("/api/persons", (request, response) => {
-  const idGenerator = () => {
-    const currentList = persons.length > 0 ? persons.length : 0;
-    return currentList + 1;
+  const newPersonJSON = request.body;
+
+  if (!newPersonJSON.name || !newPersonJSON.number) {
+    response.status(400).json({ error: "Name and number must be filled" });
+  } else {
+    const newPerson = new Person({
+      name: newPersonJSON.name,
+      number: newPersonJSON.number,
+    });
+    newPerson.save().then((savedPerson) => {
+      response.json(savedPerson);
+    });
+  }
+});
+
+app.put("/api/persons/:id", (request, response, next) => {
+  const body = request.body;
+
+  const updatedPerson = {
+    name: body.name,
+    number: body.number,
   };
 
-  const newContactJSON = request.body;
-
-  if (!newContactJSON.name || !newContactJSON.number) {
-    response.status(400).json({ error: "Name and number must be filled" });
-  } else if (persons.find((person) => person.name === newContactJSON.name)) {
-    response.status(400).json({ error: "name must be unique" });
-  } else {
-    const newContact = {
-      id: idGenerator(),
-      name: newContactJSON.name,
-      number: newContactJSON.number,
-    };
-
-    persons = persons.concat(newContact);
-    response.json(newContact);
-  }
+  Person.findByIdAndUpdate(request.params.id, updatedPerson, { new: true })
+    .then((updatedPerson) => {
+      response.json(updatedPerson);
+    })
+    .catch((error) => next(error));
 });
 
 app.use(unknownEndpoint);
 
-const PORT = process.env.PORT || 3001;
+app.use(errorHandler);
+
+const PORT = process.env.PORT;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
